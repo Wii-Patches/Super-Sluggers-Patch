@@ -1,0 +1,7 @@
+work/
+lab/user/
+lab/shots/
+lab/*.log
+__pycache__/
+*.pyc
+.DS_Store
