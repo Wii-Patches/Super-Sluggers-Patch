@@ -26,4 +26,4 @@ def dpad(l, d, remote=True):
         l.pad('wm1', 'PRESS ' + name); time.sleep(0.35); l.pad('wm1', 'RELEASE ' + name); time.sleep(0.9)
     else:
         n = {'u': 'UP', 'd': 'DOWN', 'l': 'LEFT', 'r': 'RIGHT'}[d]
-        l.cc(n, 0.35); time.sleep(0.9)
+        l.cc(n, 0.6); time.sleep(1.5)
