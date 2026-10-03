@@ -2,7 +2,7 @@
 import socket, time, re
 
 class Gdb:
-    def __init__(self, port=2345, timeout=40):
+    def __init__(self, port=2345, timeout=180):
         t0 = time.time()
         while True:
             try:

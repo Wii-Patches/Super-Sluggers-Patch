@@ -21,7 +21,7 @@ subprocess.Popen([sys.executable, os.path.join(HERE, 'labd.py'), os.path.abspath
 sys.path.insert(0, HERE)
 from ctl import Lab
 t0 = time.time()
-while time.time() - t0 < 90:
+while time.time() - t0 < 240:
     try:
         l = Lab(); l.read(0x80000000, 4); l.init_pads(); print('lab up'); break
     except Exception: time.sleep(1)

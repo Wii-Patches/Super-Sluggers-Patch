@@ -5,3 +5,7 @@ lab/*.log
 __pycache__/
 *.pyc
 .DS_Store
+*.dol
+*.wbfs
+*.iso
+*.bak
