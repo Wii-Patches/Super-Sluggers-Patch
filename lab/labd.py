@@ -74,6 +74,8 @@ def handle(req):
                 g.cmd('z%d,%x,%x' % (kind, a, n))
             g.cont()
             return {'hits': hits}
+        if op == 'cont':
+            g.running = False; g.cont(); return {}
         if op == 'alive':
             return {'alive': proc.poll() is None}
         if op == 'quit':
@@ -89,5 +91,7 @@ while True:
             try: resp = handle(json.loads(line))
             except Exception as e: resp = {'error': repr(e)}
             c.sendall((json.dumps(resp) + '\n').encode())
+    except OSError:
+        pass
     finally:
         c.close()
