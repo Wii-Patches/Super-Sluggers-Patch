@@ -16,8 +16,17 @@ class Lab:
         for i in range(tries):
             try: return self.call(op='shot', path=path)
             except RuntimeError:
-                if i == tries - 1: raise
+                if i == tries - 1: return self.shot_local(path)
                 time.sleep(1.5)
+    def shot_local(self, path):
+        """Capture without the daemon (it only sees on-screen windows; this also finds occluded ones)."""
+        import subprocess, Quartz
+        pids = [int(l.split()[0]) for l in subprocess.check_output(
+            "ps -axo pid,command | grep 'Sluggers-Patch/lab/user' | grep -v grep", shell=True, text=True).splitlines()]
+        for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll, 0):
+            if w.get('kCGWindowOwnerPID') in pids and 'RMBE' in (w.get('kCGWindowName') or ''):
+                subprocess.check_call(['screencapture', '-x', '-o', '-l', str(w['kCGWindowNumber']), path]); return {}
+        raise RuntimeError('no window')
 
     def point(self, x, y, pipe='wm1'):
         """Move the Wii Remote pointer; x,y in 0..1 of the screen (y down)."""

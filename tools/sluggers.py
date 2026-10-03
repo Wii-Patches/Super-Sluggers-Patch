@@ -32,27 +32,15 @@ def hook(dol, cave, site, src, note='', consts=None, syms=None):
     words = asm.words(asm.assemble(text, tramp, consts=consts, syms=syms)) + [NOP]
     return Hook(site, orig, words, tramp, note)
 
-def classic_v0(dol):
-    cave = Cave()
-    return Feature('cc', 'Classic Controller', 'RMBE01', [
-        hook(dol, cave, 0x805FD3D8, 'cc_buttons.s', 'KPADRead: Classic buttons -> remote bits'),
-        hook(dol, cave, 0x805FCD00, 'cc_dpad.s', 'KPADRead: left stick -> D-pad'),
-    ])
-
 CTRL, TABLE, RING = 0x80002F00, 0x80002400, 0x80002800
 
 def dbg_motion(dol):
+    """DEV ONLY: log raw accelerometer samples / replay waveforms from the lab."""
     from ops import Blob
     cave = Cave(0x80002000)
     h = hook(dol, cave, 0x805FD4C8, 'dbg_motion.s', 'DEV: log raw accel / inject waveform',
              consts=dict(CTRL=CTRL, TABLE=TABLE, RING=RING))
     return Feature('dbg', 'Motion debug', 'RMBE01', [h, Blob(0x80002400, bytes(0xC00), 'zeroed tables/ring/control')])
-
-def classic_v1(dol):
-    f = classic_v0(dol)
-    cave = Cave(f.ops[-1].tramp + 4 * len(f.ops[-1].payload))
-    f.ops.append(hook(dol, cave, 0x8050B734, 'cc_type.s', 'pad layer: Classic Controller reported as plain remote'))
-    return f
 
 REST = (0, 0, 104)
 WAVES, STATE = 0x80002400, 0x80002F00
@@ -65,21 +53,24 @@ UP = [(18, -4, 100), (138, -32, 508), (172, -38, 508), (68, -16, 508), (-226, 50
 DOWN = [(114, -26, 60)] * 4 + [REST] * 4   # placeholder until captured
 
 def waves():
-    """Concatenate the waveforms; returns (blob, consts)."""
-    seq, consts, n = [], {}, 0
+    """Concatenate the gesture waveforms; returns (blob, assembler constants)."""
+    seq, consts, n = [], dict(SWING=1, SHAKE=2, PITCH_UP=4, PITCH_DOWN=8, WAVES=WAVES, STATE=STATE), 0
     for name, w in (('SWING', SWING), ('SHAKE', SHAKE), ('UP', UP), ('DOWN', DOWN)):
         consts[name + '_AT'], consts[name + '_N'] = n, len(w)
         seq += w; n += len(w)
-    consts.update(WAVES=WAVES, STATE=STATE)
     return b''.join(struct.pack('>hhhh', x, y, z, 0) for x, y, z in seq), consts
 
-def classic_v2(dol):
+def controllers(dol):
+    """Classic Controller + GameCube pad: buttons, extension override and motion emulation."""
     from ops import Blob
-    f = classic_v1(dol)
-    last = f.ops[-1]
-    cave = Cave(last.tramp + 4 * len(last.payload))
+    cave = Cave()
     blob, consts = waves()
-    f.ops.append(hook(dol, cave, 0x805FD4C8, 'cc_motion.s', 'KPADRead: Classic buttons replay swing/shake waveforms', consts=consts))
-    f.ops.append(Blob(WAVES, blob, 'gesture waveforms'))
-    f.ops.append(Blob(STATE, bytes(64), 'gesture state'))
-    return f
+    ops = [
+        hook(dol, cave, 0x805FD3D8, 'pad.s', 'KPADRead: Classic / GameCube buttons -> remote bits, gestures', consts=consts),
+        hook(dol, cave, 0x805FCD00, 'cc_dpad.s', 'KPADRead: Classic left stick -> D-pad'),
+        hook(dol, cave, 0x8050B734, 'cc_type.s', 'pad layer: Classic Controller reported as plain remote'),
+        hook(dol, cave, 0x805FD4C8, 'motion.s', 'KPADRead: gestures replay swing/shake waveforms', consts=consts),
+        Blob(WAVES, blob, 'gesture waveforms'),
+        Blob(STATE, bytes(64), 'gesture state'),
+    ]
+    return Feature('ctl', 'Classic / GameCube controller', 'RMBE01', ops)

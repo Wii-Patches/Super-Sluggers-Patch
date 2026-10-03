@@ -37,7 +37,7 @@ def handle(req):
         if op == 'shot':
             import Quartz
             wins = [w for w in Quartz.CGWindowListCopyWindowInfo(Quartz.kCGWindowListOptionAll, 0)
-                    if w.get('kCGWindowOwnerPID') == proc.pid and w.get('kCGWindowIsOnscreen') and 'RMBE' in (w.get('kCGWindowName') or '')]
+                    if w.get('kCGWindowOwnerPID') == proc.pid and 'RMBE' in (w.get('kCGWindowName') or '')]
             if not wins: return {'error': 'no window'}
             wid = max(wins, key=lambda w: w['kCGWindowBounds']['Width'])['kCGWindowNumber']
             subprocess.check_call(['screencapture', '-x', '-o', '-l', str(wid), req['path']])
