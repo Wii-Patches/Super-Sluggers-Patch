@@ -42,6 +42,12 @@ def dbg_motion(dol):
              consts=dict(CTRL=CTRL, TABLE=TABLE, RING=RING))
     return Feature('dbg', 'Motion debug', 'RMBE01', [h, Blob(0x80002400, bytes(0xC00), 'zeroed tables/ring/control')])
 
+def dbg_cap(dol):
+    """DEV ONLY: log non-rest accelerometer samples without wrapping (live-applied by the lab)."""
+    cave = Cave(0x80002000)
+    return Feature('dbgc', 'Motion capture', 'RMBE01', [hook(dol, cave, 0x805FD4C8, 'dbg_cap.s', 'DEV: capture motion',
+                   consts=dict(CTRL=CTRL, RING=RING))])
+
 REST = (0, 0, 104)
 WAVES, STATE = 0x80002400, 0x80002F00
 SWING = [(-512, 366, 404)] + [(-512, 510, 508)] * 5 + [(-512, 366, 404), (-512, 180, 252)] + [REST] * 3 + \
@@ -50,7 +56,7 @@ SHAKE = ([(511, 0, 104)] * 3 + [(-512, 0, 104)] * 3) * 2
 UP = [(18, -4, 100), (138, -32, 508), (172, -38, 508), (68, -16, 508), (-226, 50, 508), (-512, 168, 508),
       (-512, 232, 508), (-512, 256, 508), (-512, 232, 508), (-512, 152, 508), (-79, 16, 68), (511, -160, -216),
       (511, -350, -264), (511, -164, -112)] + [REST] * 4
-DOWN = [(114, -26, 60)] * 4 + [REST] * 4   # placeholder until captured
+DOWN = [(-21, 0, -512), (-128, 0, -512), (-371, 0, -512), (-512, 0, -512), (-512, 0, -512), (-512, 0, -512), (-512, 0, -512), (-512, 0, -512), (-512, 0, -432), (102, 0, 24), (511, 0, 264), (511, 0, 316), (511, 0, 68), (105, 0, -24)] + [REST] * 4   # real swing-down captured from Dolphin's remote emulation
 
 def waves():
     """Concatenate the gesture waveforms; returns (blob, assembler constants)."""

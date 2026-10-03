@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Lab daemon: owns one Dolphin run, its GDB connection and its input pipes.
 Talk to it with lab/ctl.py (JSON lines over 127.0.0.1:47731)."""
-import json, os, socket, subprocess, sys, threading, time
+import json, os, re, socket, subprocess, sys, threading, time
 HERE = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, HERE)
 from gdb import Gdb
@@ -13,6 +13,9 @@ args = ['/Applications/Dolphin.app/Contents/MacOS/Dolphin', '-u', os.path.join(H
 log = open(os.path.join(HERE, 'dolphin.log'), 'w')
 proc = subprocess.Popen(args, stdout=log, stderr=log)
 print('dolphin pid', proc.pid, flush=True)
+def _watch():
+    rc = proc.wait(); print('dolphin exited, returncode', rc, time.strftime('%H:%M:%S'), flush=True)
+threading.Thread(target=_watch, daemon=True).start()
 g = Gdb(); g.cont()
 print('gdb attached', flush=True)
 
@@ -50,6 +53,27 @@ def handle(req):
                 Quartz.CGEventSetFlags(ev, flags)
                 Quartz.CGEventPostToPid(proc.pid, ev); time.sleep(0.08)
             return {}
+        if op == 'watch':
+            # hardware read/write watchpoints: report the PCs that hit within `secs`
+            kind = {'x': 0, 'w': 2, 'r': 3, 'a': 4}[req.get('kind', 'r')]
+            g.halt(); hits = []
+            ranges = req['ranges']
+            for a, n in ranges:
+                g.cmd('Z%d,%x,%x' % (kind, a, n))
+            t0 = time.time(); g.cont()
+            while time.time() - t0 < req['secs'] and len(hits) < req.get('max', 40):
+                g._fill(0.5)
+                stops = [p for p in g._packets() if p.startswith('T') or p.startswith('S')]
+                for _ in stops:
+                    g.running = False
+                    m = re.search(r'40:([0-9a-f]{8})', _)
+                    hits.append('0x' + m.group(1) if m else _)
+                    g.cont()
+            g.halt()
+            for a, n in ranges:
+                g.cmd('z%d,%x,%x' % (kind, a, n))
+            g.cont()
+            return {'hits': hits}
         if op == 'alive':
             return {'alive': proc.poll() is None}
         if op == 'quit':
