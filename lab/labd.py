@@ -28,6 +28,10 @@ def pipe(name):
 lock = threading.Lock()
 def handle(req):
     op = req['op']
+    if op == 'pad':           # input pipes need no GDB access: usable while a watch holds the lock
+        for line in req['lines']:
+            os.write(pipe(req['pipe']), (line + '\n').encode())
+        return {}
     with lock:
         if op == 'read':
             return {'hex': g.read(req['addr'], req['len']).hex()}
@@ -58,8 +62,9 @@ def handle(req):
             kind = {'x': 0, 'w': 2, 'r': 3, 'a': 4}[req.get('kind', 'r')]
             g.halt(); hits = []
             ranges = req['ranges']
+            reps = []
             for a, n in ranges:
-                g.cmd('Z%d,%x,%x' % (kind, a, n))
+                reps.append(g.cmd('Z%d,%x,%x' % (kind, a, n)))
             t0 = time.time(); g.cont()
             while time.time() - t0 < req['secs'] and len(hits) < req.get('max', 40):
                 g._fill(0.5)
@@ -73,7 +78,7 @@ def handle(req):
             for a, n in ranges:
                 g.cmd('z%d,%x,%x' % (kind, a, n))
             g.cont()
-            return {'hits': hits}
+            return {'hits': hits, 'replies': reps}
         if op == 'cont':
             g.running = False; g.cont(); return {}
         if op == 'alive':
@@ -83,9 +88,8 @@ def handle(req):
     return {'error': 'bad op'}
 
 srv = socket.socket(); srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-srv.bind(('127.0.0.1', 47731)); srv.listen(4)
-while True:
-    c, _ = srv.accept()
+srv.bind(('127.0.0.1', 47731)); srv.listen(8)
+def serve(c):
     try:
         for line in c.makefile():
             try: resp = handle(json.loads(line))
@@ -95,3 +99,6 @@ while True:
         pass
     finally:
         c.close()
+while True:
+    c, _ = srv.accept()
+    threading.Thread(target=serve, args=(c,), daemon=True).start()

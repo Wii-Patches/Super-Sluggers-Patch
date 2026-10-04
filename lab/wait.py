@@ -4,7 +4,9 @@ from PIL import Image, ImageChops
 SH = '/Volumes/SSD/larsen/Documents/Git/Super-Sluggers-Patch/lab/shots/'
 SCENES = {            # name: (reference file, crop box in the 640x508 window)
     'title':    ('c1.png', (190, 140, 450, 300)),
-    'files':    ('s1x.png', (130, 160, 510, 260)),
+    'files':    ('s1x.png', (130, 175, 510, 205)),
+    'startmenu': ('start.png', (240, 220, 400, 345)),
+    'demo':     ('wn5.png', (270, 385, 370, 415)),
     'main':     ('s5.png', (200, 120, 440, 160)),
     'main_prac': ('s6x.png', (30, 395, 350, 418)),
     'practice': ('o1.png', (190, 195, 450, 235)),
@@ -29,7 +31,7 @@ def wait_scene(l, scene, timeout=600, thr=14):
         time.sleep(5)
     return False
 
-THR = {'pullup': 7, 'throw': 7, 'main_prac': 6}
+THR = {'pullup': 7, 'throw': 7, 'main_prac': 6, 'files': 42}
 def hit(sc):
-    for s in ['throw', 'pullup', 'tutorial', 'lesson', 'main_prac', 'main', 'practice', 'files', 'title']:
+    for s in ['demo', 'startmenu', 'throw', 'pullup', 'tutorial', 'lesson', 'main_prac', 'main', 'practice', 'files', 'title']:
         if sc[s] < THR.get(s, 16): return s
